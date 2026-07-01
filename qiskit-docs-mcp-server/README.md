@@ -28,7 +28,7 @@ The server implements three tools for documentation access:
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `search_docs_tool` | Search across the entire Qiskit documentation for relevant content | `query`: Search query string<br>`scope`: Search scope filter — `all` (default), `documentation`, `api`, `learning`, `tutorials` |
+| `search_docs_tool` | Search the Qiskit documentation; returns short query-centered snippets by default so the response stays compact for repeated agent use | `query`: Search query string<br>`scope`: Search scope filter — `all` (default), `documentation`, `api`, `learning`, `tutorials`<br>`top_k`: Max results to return (default: 5, capped at 10)<br>`detail`: `snippet` (default, short excerpt per result) or `full` (full page body — prefer `get_page_tool` for a single page) |
 | `get_page_tool` | Fetch any Qiskit documentation page and return as markdown | `url`: Full URL or relative path (e.g., `guides/transpile`, `api/qiskit/circuit`)<br>`max_length`: Max characters to return (default: 20000, 0 for unlimited)<br>`offset`: Character offset for pagination (default: 0) |
 | `lookup_error_code_tool` | Look up a Qiskit/IBM Quantum error code | `code`: 4-digit error code (e.g., 1002, 7001, 8004) |
 
@@ -209,12 +209,25 @@ asyncio.run(main())
 ### Search Documentation
 
 ```python
-# Search for transpiler information
+# Search returns short snippets (not full pages) — cheap to call inside an agent
 result = await search_docs_tool("transpiler optimization")
-print(f"Found {result['total_results']} results")
+print(f"Showing {result['returned_results']} of {result['total_results']} matches")
 for item in result["results"]:
     print(f"- {item['title']}: {item['url']}")
+    print(f"    {item['snippet']}")
+
+# Then fetch the full content of the one page you want
+page = await get_page_tool(result["results"][0]["url"])
+print(page["documentation"])
 ```
+
+> **Note (behavior change):** `search_docs_tool` now returns short, query-centered
+> **snippets** by default and caps results to `top_k` (default 5). In default
+> (`detail="snippet"`) mode each result carries a `snippet` field — not the full
+> `text` body — and is limited to `id, url, title, pageTitle, module, section,
+> snippet`. For full content, pass `detail="full"` or fetch the page with
+> `get_page_tool`. `total_results` is the grand total of matches; `returned_results`
+> is the count after the `top_k` cap.
 
 ### Fetch a Documentation Page
 
